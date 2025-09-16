@@ -1,0 +1,106 @@
+-- give me the query to create this database
+  CREATE DATABASE
+IF NOT EXISTS proyecto_blockchain; USE proyecto_blockchain;
+CREATE TABLE IF NOT EXISTS
+  `proyecto_blockchain`.`Farmacia` ( `ID_Farmacia` bigint,
+    `Codigo_Municipio` bigint,
+    `Nombre_Farmacia` varchar(255),
+    `ID_Usuario` bigint,
+    `UltimaActividad` timestamp,
+    `Telefono_Farmacia` varchar(20),
+    `Correo_Farmacia` varchar(255),
+    `Direccion_Farmacia` varchar(255),
+  PRIMARY KEY
+    (`ID_Farmacia`) );
+CREATE TABLE IF NOT EXISTS
+  `proyecto_blockchain`.`Paciente` ( `ID_Paciente` bigint,
+    `Codigo_Municipio` bigint,
+    `Nombre_Paciente` varchar(255),
+    `Telefono_Paciente` varchar(20),
+    `Correo_Paciente` varchar(255),
+    `Fecha_Creacion_Paciente` timestamp,
+    `ID_Usuario` bigint,
+    `UltimaActividad` timestamp,
+  PRIMARY KEY
+    (`ID_Paciente`) );
+CREATE TABLE IF NOT EXISTS
+  `proyecto_blockchain`.`Usuario` ( `ID_Usuario` bigint,
+    `Usuario` varchar(255),
+    `Contrasena` varchar(255),
+    `Rol` varchar(255),
+  PRIMARY KEY
+    (`ID_Usuario`) );
+CREATE TABLE IF NOT EXISTS
+  `proyecto_blockchain`.`Receta_Medicina` ( `ID_Receta` bigint,
+    `Codigo_Medicina` bigint,
+    `Dosis` varchar(255),
+  PRIMARY KEY
+    (`ID_Receta`,
+      `Codigo_Medicina`) );
+CREATE TABLE IF NOT EXISTS
+  `proyecto_blockchain`.`Municipio` ( `Codigo_Municipio` bigint,
+    `Nombre_Municipio` varchar(255),
+  PRIMARY KEY
+    (`Codigo_Municipio`) );
+CREATE TABLE IF NOT EXISTS
+  `proyecto_blockchain`.`Receta` ( `ID_Receta` bigint,
+    `ID_Paciente` bigint,
+    `ID_Medico` bigint,
+    `Fecha_Receta` date,
+    `Hash_Receta` char(64),
+    `Receta_Detalle` json,
+  PRIMARY KEY
+    (`ID_Receta`) );
+CREATE TABLE IF NOT EXISTS
+  `proyecto_blockchain`.`Medicina` ( `ID_Medicina` bigint,
+    `Codigo_Clasificacion_Medicina` bigint,
+    `Nombre_Medicina` varchar(255),
+  PRIMARY KEY
+    (`ID_Medicina`) );
+CREATE TABLE IF NOT EXISTS
+  `proyecto_blockchain`.`Provincia` ( `Codigo_Provincia` bigint,
+    `Nombre_Provincia` varchar(255),
+  PRIMARY KEY
+    (`Codigo_Provincia`) );
+CREATE TABLE IF NOT EXISTS
+  `proyecto_blockchain`.`Permitidos` ( `ID_Paciente` bigint,
+    `ID_Medico` bigint,
+    `ID_Receta` bigint,
+  PRIMARY KEY
+    (`ID_Paciente`,
+      `ID_Medico`,
+      `ID_Receta`) );
+CREATE TABLE IF NOT EXISTS
+  `proyecto_blockchain`.`Dispensado` ( `ID_Farmacia` bigint,
+    `ID_Receta` bigint,
+    `Fecha_Dispensado` timestamp,
+  PRIMARY KEY
+    (`ID_Farmacia`,
+      `ID_Receta`) );
+CREATE TABLE IF NOT EXISTS
+  `proyecto_blockchain`.`Medico` ( `ID_Medico` bigint,
+    `Nombre_Medico` varchar(255),
+    `Llave_Publica_Medico` varchar(2048),
+    `Telefono_Medico` varchar(20),
+    `Correo_Medico` varchar(255),
+    `Fecha_Creacion_Medico` timestamp,
+    `ID_Usuario` bigint,
+    `UltimaActividad` timestamp,
+  PRIMARY KEY
+    (`ID_Medico`) );
+CREATE TABLE IF NOT EXISTS
+  `proyecto_blockchain`.`shared_access` ( `id` int,
+    `user_id` int,
+    `recipient_name` varchar(255),
+    `recipient_type` int,
+    `expires_at` datetime,
+    `created_at` datetime,
+    `receta_ids` json,
+    `status` tinyint,
+  PRIMARY KEY
+    (`id`) );
+CREATE TABLE IF NOT EXISTS
+  `proyecto_blockchain`.`Clasificacion_Medicina` ( `Codigo_Clasificacion_Medicina` bigint,
+    `Nombre_Clasificacion_Medicina` varchar(255),
+  PRIMARY KEY
+    (`Codigo_Clasificacion_Medicina`) );
