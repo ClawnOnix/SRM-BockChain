@@ -163,3 +163,4 @@ coverage/
 # Ignore other common files
 npm-debug.log
 yarn-error.log
+backend/*.json
