@@ -66,8 +66,9 @@ web_modules/
 .yarn-integrity
 
 # dotenv environment variable files
-.env
-.env.*
+# .env and .env.* are now tracked for educational purposes
+!.env
+!.env.*
 !.env.example
 
 # parcel-bundler cache (https://parceljs.org/)
@@ -144,8 +145,6 @@ backend/node_modules/
 # Ignore Google Cloud credentials
 backend/proven-mind-470222-a5-f9eb8ab13346.json
 
-# Ignore environment files
-.env
 
 # Ignore build and log files
 *.log

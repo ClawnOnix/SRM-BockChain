@@ -32,6 +32,7 @@ export function ActivePrescriptions({ selectedRecetas, setSelectedRecetas }: Act
   const [patient, setPatient] = React.useState<Patient | null>(null);
   const [prescriptions, setPrescriptions] = React.useState<Prescription[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [searchTerm, setSearchTerm] = React.useState('');
 
     React.useEffect(() => {
       setLoading(true);
@@ -73,64 +74,82 @@ export function ActivePrescriptions({ selectedRecetas, setSelectedRecetas }: Act
 
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {prescriptions.map(prescription => (
-        <div key={prescription.ID_Receta} className="bg-[#1e293b] rounded-xl shadow-lg overflow-hidden">
-          <div className="p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-lg font-medium text-white">
-                  RX-{prescription.ID_Receta}
-                </h3>
-                <p className="text-sm text-gray-400 mt-1">
-                  Médico: {prescription.Nombre_Medico}<br />
-                  Email: {prescription.Correo_Medico}
-                </p>
-              </div>
-              <span className={`px-3 py-1 rounded-full text-xs font-medium ${prescription.status === 'Dispensada' ? 'bg-gray-700 text-gray-300' : 'bg-green-900 text-green-300'}`}>
-                {prescription.status === 'Dispensada' ? 'Inactiva' : 'Activa'}
-              </span>
-            </div>
-            <div className="mt-4 flex justify-between items-center">
-              <div className="flex items-center text-gray-400 text-sm">
-                <CalendarIcon className="h-4 w-4 mr-1" />
-                <span>Emitida: {new Date(prescription.Fecha_Receta).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
-              </div>
-              <div className="flex items-center gap-4 mt-2">
-                {/* Checkbox for receta selection */}
-                <label className="flex items-center cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={selectedRecetas.includes(prescription.ID_Receta)}
-                    onChange={e => {
-                      setSelectedRecetas(prev =>
-                        e.target.checked
-                          ? [...prev, prescription.ID_Receta]
-                          : prev.filter(id => id !== prescription.ID_Receta)
-                      );
-                    }}
-                    className="peer appearance-none h-5 w-5 border-2 border-gray-400 rounded-md checked:border-blue-500 checked:bg-blue-500 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 mr-2"
-                  />
-                  <span className="flex items-center justify-center h-5 w-5 -ml-7 pointer-events-none">
-                    <svg className="hidden peer-checked:block text-white" width="20" height="20" viewBox="0 0 20 20" fill="none">
-                      <rect width="20" height="20" rx="5" fill="#3b82f6" />
-                      <path d="M6 10.5L9 13.5L14 8.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+    <div>
+      {/* Searchbox for filtering recetas by ID_Receta */}
+      <div className="mb-4 flex items-center justify-center">
+        <input
+          type="number"
+          className="w-full max-w-5xl px-4 py-3 rounded-lg bg-[#0f172a] text-white placeholder-gray-400 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-[#4ade80] text-lg"
+          placeholder="Buscar por numero de receta#"
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value.replace(/[^0-9]/g, ''))}
+          min="0"
+        />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {prescriptions
+          .filter(prescription =>
+            searchTerm.trim() === '' ||
+            prescription.ID_Receta.toString().includes(searchTerm.trim())
+          )
+          .map(prescription => (
+            <div key={prescription.ID_Receta} className="bg-[#1e293b] rounded-xl shadow-lg overflow-hidden">
+              <div className="p-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-lg font-medium text-white">
+                      RX-{prescription.ID_Receta}
+                    </h3>
+                    <p className="text-sm text-gray-400 mt-1">
+                      Médico: {prescription.Nombre_Medico}<br />
+                      Email: {prescription.Correo_Medico}
+                    </p>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${prescription.status === 'Dispensada' ? 'bg-gray-700 text-gray-300' : 'bg-green-900 text-green-300'}`}>
+                    {prescription.status === 'Dispensada' ? 'Inactiva' : 'Activa'}
                   </span>
-                  <span className="text-gray-300 text-xs ml-2">Seleccionar</span>
-                </label>
-                {/* Remove Descargar QR button */}
-                <button
-                  className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded ml-2"
-                  onClick={() => window.location.href = `/receta?id=${prescription.ID_Receta}`}
-                >
-                  Ver receta
-                </button>
+                </div>
+                <div className="mt-4 flex justify-between items-center">
+                  <div className="flex items-center text-gray-400 text-sm">
+                    <CalendarIcon className="h-4 w-4 mr-1" />
+                    <span>Emitida: {new Date(prescription.Fecha_Receta).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                  </div>
+                  <div className="flex items-center gap-4 mt-2">
+                    {/* Checkbox for receta selection */}
+                    <label className="flex items-center cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={selectedRecetas.includes(prescription.ID_Receta)}
+                        onChange={e => {
+                          setSelectedRecetas(prev =>
+                            e.target.checked
+                              ? [...prev, prescription.ID_Receta]
+                              : prev.filter(id => id !== prescription.ID_Receta)
+                          );
+                        }}
+                        className="peer appearance-none h-5 w-5 border-2 border-gray-400 rounded-md checked:border-blue-500 checked:bg-blue-500 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 mr-2"
+                      />
+                      <span className="flex items-center justify-center h-5 w-5 -ml-7 pointer-events-none">
+                        <svg className="hidden peer-checked:block text-white" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                          <rect width="20" height="20" rx="5" fill="#3b82f6" />
+                          <path d="M6 10.5L9 13.5L14 8.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </span>
+                      <span className="text-gray-300 text-xs ml-2">Seleccionar</span>
+                    </label>
+                    {/* Remove Descargar QR button */}
+                    <button
+                      className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded ml-2"
+                      onClick={() => window.location.href = `/receta?id=${prescription.ID_Receta}`}
+                    >
+                      Ver receta
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      ))}
+          ))}
+      </div>
     </div>
   );
 }

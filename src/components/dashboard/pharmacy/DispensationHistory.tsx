@@ -69,7 +69,14 @@ export function DispensationHistory() {
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <SearchIcon className="h-5 w-5 text-gray-400" />
             </div>
-            <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Buscar por paciente o ID de receta" className="bg-[#0f172a] text-white block w-full pl-10 pr-3 py-3 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4ade80] focus:border-transparent" />
+            <input
+              type="number"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value.replace(/[^0-9]/g, ''))}
+              placeholder="Buscar por numero de receta#"
+              className="bg-[#0f172a] text-white block w-full pl-10 pr-3 py-3 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4ade80] focus:border-transparent"
+              min="0"
+            />
           </div>
         </div>
       </div>
@@ -88,6 +95,11 @@ export function DispensationHistory() {
             <div key={dispensation.id || dispensation.Dispensacion_ID || idx} className="bg-[#1e293b] rounded-xl shadow-md p-5 hover:shadow-lg transition-shadow">
               <div className="flex items-start justify-between">
                 <div>
+                  <div className="flex items-center">
+                    <h3 className="text-lg font-medium text-white">
+                      RX-{dispensation.Receta_ID_Receta || dispensation.ID_Receta || dispensation.recetaId}
+                    </h3>
+                  </div>
                   <div className="flex items-center">
                     <h3 className="text-lg font-medium text-white">
                       {dispensation.Nombre_Paciente}

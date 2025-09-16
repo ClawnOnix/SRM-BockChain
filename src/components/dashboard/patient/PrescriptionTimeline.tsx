@@ -7,6 +7,7 @@ export function PrescriptionTimeline() {
   const [patient, setPatient] = React.useState<any>(null);
   const [prescriptions, setPrescriptions] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [searchTerm, setSearchTerm] = React.useState('');
 
   React.useEffect(() => {
     setLoading(true);
@@ -56,8 +57,24 @@ export function PrescriptionTimeline() {
 
   return (
     <div className="bg-[#1e293b] rounded-xl shadow-lg p-6">
+      {/* Searchbox for filtering recetas by ID_Receta */}
+      <div className="mb-4 flex items-center justify-center">
+        <input
+          type="number"
+          className="w-full max-w-5xl px-4 py-3 rounded-lg bg-[#0f172a] text-white placeholder-gray-400 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-[#4ade80] text-lg"
+          placeholder="Buscar por numero de receta#"
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value.replace(/[^0-9]/g, ''))}
+          min="0"
+        />
+      </div>
       <div className="space-y-8">
-        {prescriptions.map((prescription, index) => (
+        {prescriptions
+          .filter(prescription =>
+            searchTerm.trim() === '' ||
+            prescription.ID_Receta.toString().includes(searchTerm.trim())
+          )
+          .map((prescription, index) => (
           <div key={prescription.ID_Receta} className="relative">
             {/* Timeline connector */}
             {index < prescriptions.length - 1 && <div className="absolute top-10 bottom-0 left-4 w-0.5 bg-gray-700"></div>}

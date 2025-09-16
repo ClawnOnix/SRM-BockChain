@@ -28,6 +28,7 @@ export function ShareAccess({ selectedRecetas, setSelectedRecetas }: ShareAccess
   const [errorShares, setErrorShares] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [modalLink, setModalLink] = useState<string>('');
+  const [errorMsg, setErrorMsg] = useState<string>('');
   const navigate = useNavigate();
 
   // Fetch recipient options when type changes
@@ -136,7 +137,6 @@ export function ShareAccess({ selectedRecetas, setSelectedRecetas }: ShareAccess
               className="bg-[#0f172a] text-white block w-full px-3 py-3 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4ade80] focus:border-transparent"
             >
               <option value="Médico">Médico</option>
-              <option value="Aseguradora">Aseguradora</option>
               <option value="Farmacia">Farmacia</option>
             </select>
           </div>
@@ -181,47 +181,57 @@ export function ShareAccess({ selectedRecetas, setSelectedRecetas }: ShareAccess
               ))}
             </div>
           </div>
-          <button
-            className="flex items-center justify-center py-3 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium ml-auto"
-            onClick={async () => {
-              if (selectedRecetas.length === 0) {
-                alert('Selecciona al menos una receta para compartir.');
-                return;
-              }
-              // Prepare payload for backend
-              const user_id = localStorage.getItem('user_id');
-              let recipient_type: string | number = recipientType;
-              const recipient_name: string = recipientName || recipientType;
-              if ((recipientType === 'Médico' || recipientType === 'Farmacia') && recipientId) {
-                recipient_type = recipientId;
-              }
-              const expiresMap: Record<string, number> = { '1d': 24, '7d': 168, '30d': 720, '90d': 2160 };
-              const hours = expiresMap[accessDuration] || 24;
-              const expires_at = Date.now() + hours * 60 * 60 * 1000;
-              try {
-                const res = await fetch('http://localhost:4000/api/shared-access', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ user_id, recipient_name, recipient_type, expires_at, receta_ids: selectedRecetas })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Error al compartir acceso');
-                // Show modal with QR and link
-                const link = `${window.location.origin}/receta?shared=${data.id}`;
-                setModalLink(link);
-                setShowModal(true);
-                fetchActiveShares(); // Refetch active shares after creating
-                setSelectedRecetas([]); // Uncheck all checkboxes
-              } catch (err) {
-                setModalLink('');
-                setShowModal(true);
-              }
-            }}
-            type="button"
-          >
-            <ShareIcon className="h-5 w-5 mr-2" />
-            Compartir Acceso Temporal
-          </button>
+          <div className="flex flex-col items-center ml-auto">
+            <button
+              className="flex items-center justify-center py-3 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+              onClick={async () => {
+                setErrorMsg('');
+                if (selectedRecetas.length === 0) {
+                  setErrorMsg('Selecciona al menos una receta para compartir.');
+                  return;
+                }
+                if ((recipientType === 'Médico' || recipientType === 'Farmacia') && (!recipientName || !recipientId)) {
+                  setErrorMsg(`Selecciona un ${recipientType.toLowerCase()} válido.`);
+                  return;
+                }
+                // Prepare payload for backend
+                const user_id = localStorage.getItem('user_id');
+                let recipient_type: string | number = recipientType;
+                const recipient_name: string = recipientName || recipientType;
+                if ((recipientType === 'Médico' || recipientType === 'Farmacia') && recipientId) {
+                  recipient_type = recipientId;
+                }
+                const expiresMap: Record<string, number> = { '1d': 24, '7d': 168, '30d': 720, '90d': 2160 };
+                const hours = expiresMap[accessDuration] || 24;
+                const expires_at = Date.now() + hours * 60 * 60 * 1000;
+                try {
+                  const res = await fetch('http://localhost:4000/api/shared-access', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id, recipient_name, recipient_type, expires_at, receta_ids: selectedRecetas })
+                  });
+                  const data = await res.json();
+                  if (!res.ok) throw new Error(data.error || 'Error al compartir acceso');
+                  // Show modal with QR and link
+                  const link = `${window.location.origin}/receta?shared=${data.id}`;
+                  setModalLink(link);
+                  setShowModal(true);
+                  fetchActiveShares(); // Refetch active shares after creating
+                  setSelectedRecetas([]); // Uncheck all checkboxes
+                } catch (err) {
+                  setModalLink('');
+                  setShowModal(true);
+                }
+              }}
+              type="button"
+            >
+              <ShareIcon className="h-5 w-5 mr-2" />
+              Compartir Acceso Temporal
+            </button>
+            {errorMsg && (
+              <div className="text-red-400 text-sm mt-2 w-full text-center">{errorMsg}</div>
+            )}
+          </div>
         </div>       
         <div className="mt-6 pt-6 border-t border-gray-700">
           <div className="flex items-center justify-between mb-4">

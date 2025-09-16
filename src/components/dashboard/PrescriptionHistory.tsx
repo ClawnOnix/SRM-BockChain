@@ -18,52 +18,46 @@ export function PrescriptionHistory({
   const [prescriptions, setPrescriptions] = React.useState<Prescription[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = React.useState('');
   const navigate = useNavigate();
 
   React.useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     if (user.ID_Usuario) {
       setLoading(true);
-      // First fetch doctor info by usuarioId
-      fetch(`http://localhost:4000/api/medico/info?usuarioId=${user.ID_Usuario}`)
+      fetch(`http://localhost:4000/api/medico/recetas-full?usuarioId=${user.ID_Usuario}`)
         .then(res => res.json())
-        .then(doctor => {
-          if (doctor && doctor.ID_Medico) {
-            import('../../services/api').then(api => {
-              api.fetchPrescriptions(doctor.ID_Medico)
-                .then(data => {
-                  setPrescriptions(data.map((p: any) => ({
-                    id: p.ID_Receta,
-                    patient: p.Nombre_Paciente || '',
-                    medication: p.Nombre_Medicina || '',
-                    dosage: p.Dosis || '',
-                    date: p.Fecha_Receta || '',
-                    status: p.status || (p.Dispensada ? 'Dispensada' : 'Pendiente')
-                  })));
-                  setError(null);
-                })
-                .catch(() => {
-                  setError('Error al obtener recetas');
-                  setPrescriptions([]);
-                })
-                .finally(() => setLoading(false));
-            });
+        .then(result => {
+          if (result && result.doctor && Array.isArray(result.prescriptions)) {
+            setPrescriptions(result.prescriptions.map((p: any) => ({
+              id: p.ID_Receta,
+              patient: p.Nombre_Paciente || '',
+              medication: p.Nombre_Medicina || '',
+              dosage: p.Dosis || '',
+              date: p.Fecha_Receta || '',
+              status: p.status || (p.Dispensada ? 'Dispensada' : 'Pendiente')
+            })));
+            setError(null);
           } else {
-            setLoading(false);
             setPrescriptions([]);
+            setError('No se encontró información del médico o recetas.');
           }
         })
         .catch(() => {
-          setLoading(false);
+          setError('Error al obtener recetas');
           setPrescriptions([]);
-        });
+        })
+        .finally(() => setLoading(false));
     } else {
       setLoading(false);
       setPrescriptions([]);
     }
   }, []);
 
-  const displayedPrescriptions = limit ? prescriptions.slice(0, limit) : prescriptions;
+  const filtered = prescriptions.filter(p =>
+    searchTerm.trim() === '' || p.id.toString().includes(searchTerm.trim())
+  );
+  const displayedPrescriptions = limit ? filtered.slice(0, limit) : filtered;
 
   if (loading) {
     return <div className="text-center py-10 text-gray-400">Cargando recetas...</div>;
@@ -73,6 +67,17 @@ export function PrescriptionHistory({
   }
 
   return <div className="space-y-4">
+      {/* Searchbox for filtering by ID_Receta */}
+      <div className="mb-2 flex items-center justify-center">
+        <input
+          type="number"
+          className="w-full max-w-5xl px-4 py-3 rounded-lg bg-[#0f172a] text-white placeholder-gray-400 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-[#4ade80] text-lg"
+          placeholder="Buscar por numero de receta#"
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value.replace(/[^0-9]/g, ''))}
+          min="0"
+        />
+      </div>
       {displayedPrescriptions.map(prescription => <div key={prescription.id} className="bg-[#1e293b] rounded-xl shadow-md p-5 hover:shadow-lg transition-shadow">
           <div className="flex items-start justify-between">
             <div>
@@ -104,7 +109,7 @@ export function PrescriptionHistory({
           <div className="mt-4 flex justify-between items-center pt-3 border-t border-gray-700">
             <div className="flex items-center text-xs text-gray-400">
               <FileTextIcon className="h-4 w-4 mr-1" />
-              <span>{prescription.id}</span>
+              <span>RX-{prescription.id}</span>
             </div>
             <button className="flex items-center text-[#4ade80] hover:text-[#22c55e] text-sm" onClick={() => navigate(`/receta?id=${prescription.id}`)}>
               Ver detalles

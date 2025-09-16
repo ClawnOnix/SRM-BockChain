@@ -28,6 +28,38 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Combined doctor info and prescriptions endpoint
+app.get('/api/medico/recetas-full', async (req, res) => {
+  const usuarioId = req.query.usuarioId;
+  if (!usuarioId) return res.status(400).json({ error: 'usuarioId requerido.' });
+  try {
+    // Get doctor info
+    const [doctorRows] = await pool.query(
+      'SELECT ID_Medico, Nombre_Medico, Correo_Medico, Telefono_Medico, Llave_Publica_Medico FROM Medico WHERE ID_Usuario = ?',
+      [usuarioId]
+    );
+    if (doctorRows.length === 0) return res.status(404).json({ error: 'Médico no encontrado.' });
+    const doctor = doctorRows[0];
+    // Get prescriptions for doctor
+    const [prescRows] = await pool.query(
+      `SELECT r.ID_Receta, r.Fecha_Receta, r.Hash_Receta, p.Nombre_Paciente, me.Nombre_Medicina, rm.Dosis, r.Receta_Detalle,
+        CASE WHEN d.ID_Receta IS NOT NULL THEN 'Dispensada' ELSE 'Pendiente' END AS status
+       FROM Receta r
+       JOIN Paciente p ON r.ID_Paciente = p.ID_Paciente
+       JOIN Receta_Medicina rm ON r.ID_Receta = rm.ID_Receta
+       JOIN Medicina me ON rm.Codigo_Medicina = me.ID_Medicina
+       LEFT JOIN Dispensado d ON r.ID_Receta = d.ID_Receta
+       WHERE r.ID_Medico = ?
+       ORDER BY r.Fecha_Receta DESC`,
+      [doctor.ID_Medico]
+    );
+    res.json({ doctor, prescriptions: prescRows });
+  } catch (err) {
+    console.error('Error en /api/medico/recetas-full:', err);
+    res.status(500).json({ error: 'Error interno del servidor.' });
+  }
+});
+
 // Get receta info by ID (for RecetaView)
 app.get('/api/receta/:id', async (req, res) => {
   const recetaId = req.params.id;
@@ -323,49 +355,6 @@ app.post('/api/shared-access', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'Error al guardar acceso compartido' });
   }
-});
-
-// Upload temporary image
-app.post('/api/upload-temporary-image', upload.single('image'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No image uploaded.' });
-  // Save file with original extension
-  const ext = path.extname(req.file.originalname);
-  const newFilename = req.file.filename + ext;
-  const oldPath = path.join(tempDir, req.file.filename);
-  const newPath = path.join(tempDir, newFilename);
-  fs.renameSync(oldPath, newPath);
-  // Generate token and expiration (e.g., 10 min)
-  const token = crypto.randomBytes(16).toString('hex');
-  const expiresAt = Date.now() + 10 * 60 * 1000;
-  tempImages[token] = {
-    filename: newFilename,
-    originalname: req.file.originalname,
-    expiresAt
-  };
-  res.json({ token, expiresAt, url: `/api/temp-image/${token}` });
-});
-
-// Serve temporary image
-app.get('/api/temp-image/:token', (req, res) => {
-  const { token } = req.params;
-  const entry = tempImages[token];
-  if (!entry) return res.status(404).json({ error: 'Invalid or expired token.' });
-  if (Date.now() > entry.expiresAt) {
-    // Delete file and entry
-    fs.unlink(path.join(tempDir, entry.filename), () => {});
-    delete tempImages[token];
-    return res.status(410).json({ error: 'Token expired.' });
-  }
-  const filePath = path.join(tempDir, entry.filename);
-  const ext = path.extname(entry.originalname).toLowerCase();
-  let mimeType = 'application/octet-stream';
-  if (ext === '.jpg' || ext === '.jpeg') mimeType = 'image/jpeg';
-  else if (ext === '.png') mimeType = 'image/png';
-  else if (ext === '.gif') mimeType = 'image/gif';
-  else if (ext === '.bmp') mimeType = 'image/bmp';
-  else if (ext === '.webp') mimeType = 'image/webp';
-  res.setHeader('Content-Type', mimeType);
-  res.sendFile(filePath);
 });
 
 // Use Cloud SQL Connector for secure connection

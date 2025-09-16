@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { UserIcon, PillIcon, ShieldIcon } from 'lucide-react';
+import { QRCode } from 'react-qrcode-logo';
 
 function useQuery() {
   return new URLSearchParams(useLocation().search);
@@ -25,8 +26,10 @@ interface Receta {
   Correo_Paciente: string;
   Nombre_Medico: string;
   Correo_Medico: string;
+  status: string;
   medicamentos: Medicamento[];
   Instrucciones_Adicionales?: string;
+  Receta_Detalle?: any; // parsed JSON from backend (may include instruccion)
 }
 
 async function fetchRecetasByIds(ids: number[]): Promise<Receta[]> {
@@ -41,6 +44,7 @@ export default function RecetaView() {
   const [recetas, setRecetas] = useState<Receta[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const qrRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -75,7 +79,10 @@ export default function RecetaView() {
   return (
     <div className="bg-[#1e293b] rounded-xl shadow-lg p-8 max-w-2xl mx-auto mt-10">
       {recetas.map((receta, idx) => (
-        <div key={receta.ID_Receta || idx} className="mb-8">
+        <div
+          key={receta.ID_Receta || idx}
+          className={`mb-8 ${idx < recetas.length - 1 ? 'pb-8 border-b border-gray-700' : 'mb-4'}`}
+        >
           <div className="flex items-center mb-6">
             <div className="h-10 w-10 rounded-lg bg-[#0f172a] flex items-center justify-center mr-4">
               <PillIcon className="h-6 w-6 text-[#4ade80]" />
@@ -133,15 +140,63 @@ export default function RecetaView() {
               )}
             </div>
           </div>
-          <div className="mb-8 flex items-center gap-6">
-            <div>
+
+          <div className="mb-8">
+            <h3 className="text-sm font-medium text-gray-400 mb-2">Estado</h3>
+            <div className="bg-[#0f172a] rounded-lg p-4">
+              <p className="text-white">{receta.status}</p>
+            </div>
+          </div>
+          <div className="mb-8 flex flex-col md:flex-row md:items-start gap-6">
+            <div ref={qrRef} className="flex flex-col items-start">
               <h3 className="text-sm font-medium text-gray-400 mb-2">Código QR de acceso</h3>
-              {/* QRCode generation should be handled elsewhere or with correct value */}
+              <div className="bg-white p-3 rounded-lg shadow inline-block">
+                <QRCode
+                  value={`${window.location.origin}/receta?id=${receta.ID_Receta}`}
+                  size={140}
+                  quietZone={10}
+                  ecLevel="M"
+                  eyeRadius={4}
+                  fgColor="#0f172a"
+                  bgColor="#ffffff"
+                />
+              </div>
+              <div className="flex gap-3 mt-3">
+                <button
+                  onClick={() => {
+                    const url = `${window.location.origin}/receta?id=${receta.ID_Receta}`;
+                    navigator.clipboard.writeText(url);
+                  }}
+                  className="px-3 py-2 text-xs rounded bg-[#4ade80] text-[#0f172a] hover:bg-[#22c55e] transition-colors"
+                >
+                  Copiar enlace
+                </button>
+                <button
+                  onClick={() => {
+                    try {
+                      const canvas = qrRef.current?.querySelector('canvas');
+                      if (canvas) {
+                        const link = document.createElement('a');
+                        link.download = `receta-${receta.ID_Receta}.png`;
+                        link.href = canvas.toDataURL('image/png');
+                        link.click();
+                      }
+                    } catch (e) {
+                      // ignore canvas export errors
+                    }
+                  }}
+                  className="px-3 py-2 text-xs rounded bg-[#0f172a] text-white border border-gray-600 hover:border-[#4ade80] transition-colors"
+                >
+                  Descargar PNG
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2 max-w-xs">Escanea este código para abrir esta receta directamente en el sistema.</p>
             </div>
           </div>
           {/* Add more info as needed, e.g. blockchain hash, dispensada status, etc. */}
         </div>
       ))}
+      {recetas.length > 1 && <div className="h-4" />}
     </div>
   );
 }
