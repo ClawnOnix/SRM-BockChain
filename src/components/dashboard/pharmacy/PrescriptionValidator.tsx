@@ -227,7 +227,7 @@ export function PrescriptionValidator({
                       <div className="flex items-center justify-between mb-1">
                         <span>Hash:</span>
                         <span className="font-mono">
-                          {prescription.Hash_Receta}
+                          {prescription.Hash_Receta.slice(0, 10) + '...' + prescription.Hash_Receta.slice(-10)}
                         </span>
                       </div>
                     </div>}

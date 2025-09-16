@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Fragment } from 'react';
 import { ChevronDownIcon, ChevronUpIcon, AlertCircleIcon, CheckCircleIcon, ClockIcon, FileTextIcon, EyeIcon, ArrowUpDownIcon } from 'lucide-react';
+import { getMedicationRisk } from '../../../utils/medicationRisk';
 
 interface PrescriptionsTableProps {
   filters: {
@@ -58,6 +59,7 @@ interface DetalleReceta {
 export function PrescriptionsTable({
   filters
 }: PrescriptionsTableProps) {
+  const [searchTerm, setSearchTerm] = React.useState('');
   const [sortField, setSortField] = useState('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
@@ -131,8 +133,13 @@ export function PrescriptionsTable({
     return `${hours}:${minutes} ${day}/${month}/${year}`;
   }
 
-  // Filter prescriptions based on search filters
+  // Filter prescriptions based on search filters and searchTerm
   const filteredPrescriptions = prescriptions.filter(prescription => {
+    // Searchbox filter by ID_Receta
+    if (searchTerm.trim() !== '' && !prescription.id.includes(searchTerm.trim())) {
+      return false;
+    }
+    // ...existing code...
     // Search query filter
     if (filters.query) {
       const query = filters.query.toLowerCase();
@@ -228,6 +235,17 @@ export function PrescriptionsTable({
 
   return (
     <div className="space-y-4">
+      {/* Searchbox for filtering recetas by ID_Receta */}
+      <div className="mb-4 flex items-center justify-center">
+        <input
+          type="number"
+          className="w-full max-w-6xl px-4 py-3 rounded-lg bg-[#0f172a] text-white placeholder-gray-400 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-[#4ade80] text-lg"
+          placeholder="Buscar por numero de receta#"
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value.replace(/[^0-9]/g, ''))}
+          min="0"
+        />
+      </div>
       <div className="bg-[#1e293b] rounded-xl shadow-lg overflow-hidden">
         {/* Table Header */}
         <div className="overflow-x-auto">
@@ -273,9 +291,6 @@ export function PrescriptionsTable({
                     <ArrowUpDownIcon className="h-4 w-4 ml-1" />
                   </div>
                 </th>
-                <th scope="col" className="px-4 py-3.5 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  Acciones
-                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-700">
@@ -319,20 +334,28 @@ export function PrescriptionsTable({
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        {prescription.riskLevel === 'normal' ? <CheckCircleIcon className="h-4 w-4 text-green-400 mr-1" /> : prescription.riskLevel === 'moderado' ? <ClockIcon className="h-4 w-4 text-yellow-400 mr-1" /> : <AlertCircleIcon className="h-4 w-4 text-red-400 mr-1" />}
+                        {(() => {
+                          const risk = getMedicationRisk(prescription.medication);
+                          if (risk === 'Normal') return <CheckCircleIcon className="h-4 w-4 text-green-400 mr-1" />;
+                          if (risk === 'Riesgo moderado') return <ClockIcon className="h-4 w-4 text-yellow-400 mr-1" />;
+                          if (risk === 'Alto riesgo') return <AlertCircleIcon className="h-4 w-4 text-red-600 mr-1" />;
+                          return <AlertCircleIcon className="h-4 w-4 text-red-400 mr-1" />;
+                        })()}
                         <span className={`text-xs
-                            ${prescription.riskLevel === 'normal' ? 'text-green-400' : prescription.riskLevel === 'moderado' ? 'text-yellow-400' : 'text-red-400'}`}>
-                          {prescription.riskLevel.charAt(0).toUpperCase() + prescription.riskLevel.slice(1)}
+                          ${(() => {
+                            const risk = getMedicationRisk(prescription.medication);
+                            if (risk === 'Normal') return 'text-green-400';
+                            if (risk === 'Riesgo moderado') return 'text-yellow-400';
+                            if (risk === 'Alto riesgo') return 'text-red-600 font-bold';
+                            return 'text-red-400';
+                          })()}`}
+                        >
+                          {(() => {
+                            const risk = getMedicationRisk(prescription.medication);
+                            return risk;
+                          })()}
                         </span>
                       </div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button className="text-[#3b82f6] hover:text-[#60a5fa] mr-3">
-                        <EyeIcon className="h-5 w-5" />
-                      </button>
-                      <button className="text-[#3b82f6] hover:text-[#60a5fa]">
-                        <FileTextIcon className="h-5 w-5" />
-                      </button>
                     </td>
                   </tr>
                   {expandedRow === prescription.id && (
@@ -375,16 +398,20 @@ export function PrescriptionsTable({
                                 <span className="text-gray-400">
                                   Estado de Verificación:
                                 </span>
-                                {prescription.blockchain.verified ? <span className="text-green-400 ml-1">
-                                    Verificado
-                                  </span> : <span className="text-red-400 ml-1">
-                                    No verificado
-                                  </span>}
+                                {prescription.status === 'Pendiente' && prescription.pharmacy !== 'Dispensada' ? (
+                                  <span className="text-red-400 ml-1">No verificada</span>
+                                ) : (
+                                  prescription.blockchain.verified ? (
+                                    <span className="text-green-400 ml-1">Verificado</span>
+                                  ) : (
+                                    <span className="text-red-400 ml-1">No verificado</span>
+                                  )
+                                )}
                               </p>
                               <p className="text-gray-300">
                                 <span className="text-gray-400">Hash:</span>
                                 <span className="font-mono ml-1">
-                                  {prescription.blockchain.hash}
+                                  {prescription.blockchain.hash.slice(0, 10) + '...' + prescription.blockchain.hash.slice(-10)}
                                 </span>
                               </p>
                               <p className="text-gray-300">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
+import { getMedicationRisk } from '../../../utils/medicationRisk';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 
 interface AnalyticsChartsProps {
   filters: {
@@ -24,14 +25,8 @@ export function AnalyticsCharts({ filters }: AnalyticsChartsProps) {
   const [prescriptionsByDay, setPrescriptionsByDay] = useState<PrescriptionDay[]>([]);
   const [medicationDistribution, setMedicationDistribution] = useState<MedicationDist[]>([]);
   const [topPrescribers, setTopPrescribers] = useState<TopPrescriber[]>([]);
-  // Placeholder for risk trends
-  const [riskLevelTrends] = useState([
-    { name: '01/09', Normal: 90, Moderado: 8, Elevado: 2 },
-    { name: '02/09', Normal: 88, Moderado: 10, Elevado: 2 },
-    { name: '03/09', Normal: 92, Moderado: 6, Elevado: 2 },
-    { name: '04/09', Normal: 85, Moderado: 12, Elevado: 3 },
-    { name: '05/09', Normal: 83, Moderado: 13, Elevado: 4 }
-  ]);
+  // Risk trends from real data
+  const [riskLevelTrends, setRiskLevelTrends] = useState<any[]>([]);
 
   useEffect(() => {
     setLoading(true);
@@ -87,6 +82,27 @@ export function AnalyticsCharts({ filters }: AnalyticsChartsProps) {
             .slice(0, 5)) as TopPrescriber[]
         );
 
+        // --- Risk Level Trends by Day ---
+        const riskDayMap: Record<string, { name: string; Normal: number; Moderado: number; "Alto riesgo": number }> = {};
+        data.forEach((row: any) => {
+          const date = row.Fecha_Receta?.slice(0, 10);
+          if (!date) return;
+          let med = '';
+          if (row.Receta_Detalle) {
+            try {
+              const detalle = typeof row.Receta_Detalle === 'string' ? JSON.parse(row.Receta_Detalle) : row.Receta_Detalle;
+              med = detalle.medicamento || '';
+            } catch {
+              med = '';
+            }
+          }
+          const risk = getMedicationRisk(med);
+          if (!riskDayMap[date]) riskDayMap[date] = { name: date, Normal: 0, Moderado: 0, "Alto riesgo": 0 };
+          if (risk === 'Normal') riskDayMap[date].Normal += 1;
+          else if (risk === 'Riesgo moderado') riskDayMap[date].Moderado += 1;
+          else if (risk === 'Alto riesgo') riskDayMap[date]["Alto riesgo"] += 1;
+        });
+        setRiskLevelTrends(Object.values(riskDayMap).sort((a, b) => a.name.localeCompare(b.name)));
         setLoading(false);
       })
       .catch(() => {
@@ -96,6 +112,24 @@ export function AnalyticsCharts({ filters }: AnalyticsChartsProps) {
   }, [timeRange, filters]);
 
   const COLORS = ['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe', '#eff6ff'];
+
+  // Custom scrollable legend for PieChart
+  const renderScrollableLegend = (props: any) => {
+    const { payload } = props;
+    return (
+      <div style={{ maxHeight: 120, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {payload.map((entry: any, idx: number) => {
+          const truncated = entry.value.length > 20 ? entry.value.slice(0, 20) + '...' : entry.value;
+          return (
+            <div key={`legend-item-${idx}`} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 14, height: 14, background: entry.color, display: 'inline-block', borderRadius: 3, marginRight: 6 }} />
+              <span title={entry.value} style={{ color: '#93c5fd', fontSize: 13, cursor: 'pointer' }}>{truncated}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
   const RISK_COLORS = {
     Normal: '#4ade80',
     Moderado: '#facc15',
@@ -117,7 +151,7 @@ export function AnalyticsCharts({ filters }: AnalyticsChartsProps) {
                 <XAxis dataKey="name" stroke="#9ca3af" />
                 <YAxis stroke="#9ca3af" />
                 <Tooltip contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f9fafb' }} />
-                <Legend />
+                // ...existing code...
                 <Line type="monotone" dataKey="Prescripciones" stroke="#3b82f6" strokeWidth={2} activeDot={{ r: 8 }} />
                 <Line type="monotone" dataKey="Dispensaciones" stroke="#60a5fa" strokeWidth={2} />
               </LineChart>
@@ -134,10 +168,10 @@ export function AnalyticsCharts({ filters }: AnalyticsChartsProps) {
                 <XAxis dataKey="name" stroke="#9ca3af" />
                 <YAxis stroke="#9ca3af" />
                 <Tooltip contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f9fafb' }} />
-                <Legend />
+                // ...existing code...
                 <Area type="monotone" dataKey="Normal" stackId="1" stroke={RISK_COLORS.Normal} fill={RISK_COLORS.Normal} fillOpacity={0.6} />
                 <Area type="monotone" dataKey="Moderado" stackId="1" stroke={RISK_COLORS.Moderado} fill={RISK_COLORS.Moderado} fillOpacity={0.6} />
-                <Area type="monotone" dataKey="Elevado" stackId="1" stroke={RISK_COLORS.Elevado} fill={RISK_COLORS.Elevado} fillOpacity={0.6} />
+                <Area type="monotone" dataKey="Alto riesgo" stackId="1" stroke={RISK_COLORS.Elevado} fill={RISK_COLORS.Elevado} fillOpacity={0.6} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -148,11 +182,16 @@ export function AnalyticsCharts({ filters }: AnalyticsChartsProps) {
           <div className="h-80">
             <ResponsiveContainer width="100%" height={350}>
               <PieChart margin={{ top: 40, right: 40, left: 40, bottom: 40 }}>
-                <Pie data={medicationDistribution} cx="50%" cy="50%" labelLine={false} outerRadius={100} fill="#8884d8" dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                <Pie data={medicationDistribution} cx="50%" cy="50%" labelLine={false} outerRadius={100} fill="#8884d8" dataKey="value" label={({ name, percent }) => `${name.length > 20 ? name.slice(0, 20) + '...' : name} ${(percent * 100).toFixed(0)}%`}>
                   {medicationDistribution.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                 </Pie>
-                <Tooltip contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f9fafb' }} formatter={value => [`${value} prescripciones`, 'Cantidad']} />
-                <Legend formatter={value => <span className="text-gray-300">{value}</span>} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151' }}
+                  itemStyle={{ color: '#fff', fontWeight: 500 }}
+                  formatter={value => [`${value} prescripciones`, 'Cantidad']} 
+                />
+                {/* Custom scrollable legend with tooltips */}
+                {renderScrollableLegend({ payload: medicationDistribution.map((entry, idx) => ({ value: entry.name, color: COLORS[idx % COLORS.length] })) })}
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -180,34 +219,37 @@ export function AnalyticsCharts({ filters }: AnalyticsChartsProps) {
         <div className="bg-[#1e293b] rounded-xl shadow-lg p-4">
           <h3 className="text-sm font-medium text-gray-400">Total Prescripciones</h3>
           <p className="text-2xl font-bold text-white mt-2">{analyticsData.length}</p>
-          <div className="flex items-center mt-2 text-green-400 text-xs">
-            <span className="font-medium">+12.5%</span>
-            <span className="ml-1">vs. periodo anterior</span>
-          </div>
         </div>
         <div className="bg-[#1e293b] rounded-xl shadow-lg p-4">
           <h3 className="text-sm font-medium text-gray-400">Tasa de Dispensación</h3>
-          <p className="text-2xl font-bold text-white mt-2">{analyticsData.length ? ((analyticsData.filter(r => r.status === 'Dispensada').length / analyticsData.length) * 100).toFixed(1) : '0'}%</p>
-          <div className="flex items-center mt-2 text-green-400 text-xs">
-            <span className="font-medium">+2.1%</span>
-            <span className="ml-1">vs. periodo anterior</span>
-          </div>
+          <p className="text-2xl font-bold text-white mt-2">{
+            analyticsData.length
+              ? (
+                  analyticsData.filter(row => row.status === 'Dispensada').length / analyticsData.length * 100
+                ).toFixed(1)
+              : '0'
+          }%</p>
         </div>
         <div className="bg-[#1e293b] rounded-xl shadow-lg p-4">
           <h3 className="text-sm font-medium text-gray-400">Prescripciones de Alto Riesgo</h3>
-          <p className="text-2xl font-bold text-white mt-2">37</p>
-          <div className="flex items-center mt-2 text-red-400 text-xs">
-            <span className="font-medium">+5.7%</span>
-            <span className="ml-1">vs. periodo anterior</span>
-          </div>
+          <p className="text-2xl font-bold text-white mt-2">{
+            analyticsData.filter(row => {
+              let med = '';
+              if (row.Receta_Detalle) {
+                try {
+                  const detalle = typeof row.Receta_Detalle === 'string' ? JSON.parse(row.Receta_Detalle) : row.Receta_Detalle;
+                  med = detalle.medicamento || '';
+                } catch {
+                  med = '';
+                }
+              }
+              return getMedicationRisk(med) === 'Alto riesgo';
+            }).length
+          }</p>
         </div>
         <div className="bg-[#1e293b] rounded-xl shadow-lg p-4">
           <h3 className="text-sm font-medium text-gray-400">Médicos Activos</h3>
           <p className="text-2xl font-bold text-white mt-2">{topPrescribers.length}</p>
-          <div className="flex items-center mt-2 text-blue-400 text-xs">
-            <span className="font-medium">+3</span>
-            <span className="ml-1">nuevos este mes</span>
-          </div>
         </div>
       </div>
     </div>
