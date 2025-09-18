@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # get_prescription.py
+# JOSE JAVIER SANTANA VARGAS 1107556
 
 import os
 import argparse
